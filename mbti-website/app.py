@@ -1633,12 +1633,12 @@ elif st.session_state.step == 'result':
 </div>
 """, unsafe_allow_html=True)
 
-with tab5:
+    with tab5:
     st.markdown(f"<div class='css-card' style='white-space: pre-line;'>{addon['risk_protocol']}\n\n{addon['execution_sop']}</div>", unsafe_allow_html=True)
 
-with tab6:
+    with tab6:
     st.markdown(f"<div class='css-card' style='white-space: pre-line;'>{addon['review_checklist']}</div>", unsafe_allow_html=True)
-    
+
     # -------------------------------------------------------
     # 底部行动区
     # -------------------------------------------------------
