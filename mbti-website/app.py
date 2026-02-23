@@ -256,6 +256,52 @@ st.markdown("""
         opacity: 0.9;
         transform: scale(1.02);
     }
+/* ===== Mobile-friendly typography (append at end of your CSS) ===== */
+:root{
+  --fz-body: 14px;
+  --fz-small: 12px;
+  --fz-h1: 28px;
+  --fz-h2: 18px;
+  --fz-h3: 16px;
+}
+
+.stApp { font-size: var(--fz-body); }
+p, li { font-size: var(--fz-body) !important; line-height: 1.65; }
+
+/* Headings */
+h1 { font-size: var(--fz-h1) !important; line-height: 1.15; }
+h2 { font-size: var(--fz-h2) !important; line-height: 1.25; }
+h3 { font-size: var(--fz-h3) !important; line-height: 1.25; }
+
+/* Streamlit text bits */
+.stCaptionContainer, .stCaption, small, .tiny-text {
+  font-size: var(--fz-small) !important;
+}
+
+/* Buttons */
+div.stButton > button { font-size: 14px !important; padding: 12px 16px !important; }
+
+/* Result hero title you set with class */
+.main-title-gradient { font-size: 30px !important; }
+
+/* Traits box */
+.trait-letter { font-size: 22px !important; }
+.trait-name { font-size: 11px !important; }
+
+/* Reduce card padding for mobile */
+.css-card { padding: 18px !important; }
+
+/* Responsive overrides */
+@media (max-width: 480px){
+  :root{
+    --fz-body: 13px;
+    --fz-small: 11px;
+    --fz-h1: 24px;
+    --fz-h2: 17px;
+    --fz-h3: 15px;
+  }
+  .traits-grid{ grid-template-columns: repeat(2, 1fr) !important; }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1076,6 +1122,114 @@ REPORT_TEMPLATES = {
     }
 }
 
+# ==============================
+# 3.x 机构化增强报告生成器 (append after REPORT_TEMPLATES)
+# ==============================
+
+DIM_EXPLAIN = {
+    "E": "外向(E)：信息来源偏社交与热度；优势在于情绪与资金的共振捕捉，风险在于回声室与FOMO。",
+    "I": "内向(I)：信息来源偏独立研究；优势在于低噪音决策与深度复盘，风险在于错过窗口与过度确认。",
+    "S": "实感(S)：偏好可验证数据/价格行为；优势在于执行稳定，风险在于忽视范式转移与叙事溢价。",
+    "N": "直觉(N)：偏好叙事/趋势/周期位置；优势在于提前布局大机会，风险在于把想象当事实与叙事过拟合。",
+    "T": "理智(T)：偏好概率/期望值/规则；优势在于风控与一致性，风险在于低估市场非理性与流动性冲击。",
+    "F": "情感(F)：偏好价值/人性/情绪；优势在于理解共识与社区，风险在于信仰仓与沉没成本。",
+    "J": "判断(J)：偏好计划/纪律/确定性；优势在于回撤控制，风险在于在震荡市“系统被磨损”。",
+    "P": "知觉(P)：偏好灵活/探索/应变；优势在于适应结构变化，风险在于过度交易与规则漂移。"
+}
+
+MARKET_FIT = {
+    "SN": {
+        "S": "更适合：主流币趋势/订单流/结构明确的品种（BTC/ETH、股指、外汇主流对）。",
+        "N": "更适合：叙事驱动与周期轮动（新公链、赛道轮动、宏观拐点布局）。"
+    },
+    "TF": {
+        "T": "更适合：规则化策略、量化/半量化、期权结构与对冲。",
+        "F": "更适合：社区/注意力资产、叙事驱动、文化属性强的品种（Meme/NFT/社交代币）。"
+    },
+    "JP": {
+        "J": "更适合：计划型执行（突破/趋势跟随/网格/固定SOP）。",
+        "P": "更适合：事件驱动/波段/快速试错（但必须有硬风控）。"
+    }
+}
+
+def _pct(a, b):
+    total = max(a + b, 1)
+    return int(a / total * 100)
+
+def build_profile_addendum(mbti: str, scores: Counter) -> dict:
+    """
+    根据四维字母 + 作答强弱(百分比) 生成“机构化增补”文本。
+    目的：让每个类型都有足够长且更严谨的分析。
+    """
+    e, i = scores.get('E', 0), scores.get('I', 0)
+    s, n = scores.get('S', 0), scores.get('N', 0)
+    t, f = scores.get('T', 0), scores.get('F', 0)
+    j, p = scores.get('J', 0), scores.get('P', 0)
+
+    pe, pn, pt, pj = _pct(e, i), _pct(n, s), _pct(t, f), _pct(j, p)  # 注意：pn 是 N 强度
+    # 强度标签（让报告更“量化”）
+    def strength_label(x):
+        if x >= 70: return "强"
+        if x >= 55: return "中强"
+        if x >= 45: return "均衡"
+        if x >= 30: return "中弱"
+        return "弱"
+
+    dim_text = "\n".join([DIM_EXPLAIN[ch] for ch in mbti])
+
+    # 机构化 SOP（按维度组合）
+    risk_protocol = (
+        f"【风控协议】你的纪律强度(J={pj}%, {strength_label(pj)}) 与理性强度(T={pt}%, {strength_label(pt)})决定了你能否稳定穿越波动。\n"
+        f"- 单笔风险：建议 0.5%~1.5%（越接近P或F越取下限）。\n"
+        f"- 日内最大亏损：2R 或 2%（触发立即停止交易并复盘）。\n"
+        f"- 黑天鹅模式：只允许减仓/对冲，不允许“加杠杆抄底”。\n"
+        f"- 复利模式：当周盈利>3R，允许上调仓位10%~20%；当周回撤>3R，强制下调仓位30%并进入观察期。"
+    )
+
+    execution_sop = (
+        "【执行SOP】\n"
+        "1) 入场：必须同时满足「结构信号」+「流动性/成交量确认」+「止损位可定义」。\n"
+        "2) 止损：先写止损再下单；止损不允许“凭感觉挪远”。\n"
+        "3) 止盈：至少分两段（TP1锁利润 + TP2跟随趋势/移动止损）。\n"
+        "4) 复盘：记录触发信号、进出场理由、执行偏差、情绪水平(0-10)、滑点/手续费。"
+    )
+
+    review_checklist = (
+        "【复盘清单】\n"
+        "- 每日：今天是否遵守单笔风险？是否出现“为交易而交易”？是否在不确定环境里加杠杆？\n"
+        "- 每周：最大回撤来自哪类错误（信号错误/执行错误/情绪错误/信息污染）？\n"
+        "- 每月：你的优势赛道是否仍有效（波动率、流动性、叙事阶段是否变化）？"
+    )
+
+    market_fit = (
+        f"{MARKET_FIT['SN'][mbti[1]]}\n"
+        f"{MARKET_FIT['TF'][mbti[2]]}\n"
+        f"{MARKET_FIT['JP'][mbti[3]]}"
+    )
+
+    alpha_source = (
+        "【Alpha来源（机制解释）】\n"
+        "- 你赚钱不是因为“看对一次”，而是因为你在某类环境下能持续做对“决策过程”。\n"
+        "- 当市场结构与你的感知/判断偏好一致时，你的胜率与盈亏比会同步提升；反之你会出现“信号看起来都对但就是亏钱”的磨损期。"
+    )
+
+    failure_mode = (
+        "【典型失效模式】\n"
+        "- 震荡磨损：在没有趋势/没有事件驱动时频繁试错，手续费与小止损累积吞噬利润。\n"
+        "- 叙事反噬：把“故事”当成“事实”，或在流动性退潮期仍按牛市思维持仓。\n"
+        "- 情绪漂移：连续盈利/亏损后改变规则（尤其P与F偏强时更常见）。"
+    )
+
+    return {
+        "dimension_appendix": dim_text,
+        "market_fit_appendix": market_fit,
+        "alpha_appendix": alpha_source,
+        "failure_appendix": failure_mode,
+        "risk_protocol": risk_protocol,
+        "execution_sop": execution_sop,
+        "review_checklist": review_checklist
+    }
+
 # ==========================================
 # 4. 逻辑控制与状态管理
 # ==========================================
@@ -1099,6 +1253,7 @@ def handle_option(value):
 
 def calculate_result():
     scores = Counter(st.session_state.answers.values())
+    st.session_state.mbti_scores = scores
     
     e, i = scores.get('E', 0), scores.get('I', 0)
     s, n = scores.get('S', 0), scores.get('N', 0)
@@ -1274,6 +1429,14 @@ elif st.session_state.step == 'result':
         'evolution': {'lvl1': 'N/A', 'lvl2': 'N/A', 'lvl3': 'N/A'}
     }
     template = REPORT_TEMPLATES.get(mbti, default_data)
+    scores = st.session_state.get("mbti_scores", Counter())
+    addon = build_profile_addendum(mbti, scores)
+
+    # 把增强文本拼接到原来的字段里（让内容立刻变长且更严谨）
+    template["cognitive"] = template.get("cognitive", "") + "\n\n" + addon["alpha_appendix"] + "\n\n" + addon["dimension_appendix"]
+    template["blindspot"] = template.get("blindspot", "") + "\n\n" + addon["failure_appendix"]
+    template["markets"] = template.get("markets", "") + "\n\n" + addon["market_fit_appendix"]
+    
     radar_scores = st.session_state.get('radar_scores', {'风控力':50, '心态值':50, '敏捷度':50, '宏观感':50, '执行力':50})
 
     # 解析标题名称
@@ -1368,11 +1531,13 @@ elif st.session_state.step == 'result':
     # -------------------------------------------------------
     st.markdown("<br>", unsafe_allow_html=True)
     
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "⚔️ 战场策略 (Strategy)", 
-        "🧬 基因优势 (Alpha)", 
-        "🛠️ 装备环境 (Setup)", 
-        "🚀 进化路线 (Evolution)"
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "⚔️ 战场策略 (Strategy)",
+    "🧬 基因优势 (Alpha)",
+    "🛠️ 装备环境 (Setup)",
+    "🚀 进化路线 (Evolution)",
+    "🧯 风控协议 (Risk)",
+    "📝 复盘清单 (Review)"
     ])
     
     # --- Tab 1: 策略与市场 ---
@@ -1468,6 +1633,12 @@ elif st.session_state.step == 'result':
 </div>
 """, unsafe_allow_html=True)
 
+with tab5:
+    st.markdown(f"<div class='css-card' style='white-space: pre-line;'>{addon['risk_protocol']}\n\n{addon['execution_sop']}</div>", unsafe_allow_html=True)
+
+with tab6:
+    st.markdown(f"<div class='css-card' style='white-space: pre-line;'>{addon['review_checklist']}</div>", unsafe_allow_html=True)
+    
     # -------------------------------------------------------
     # 底部行动区
     # -------------------------------------------------------
