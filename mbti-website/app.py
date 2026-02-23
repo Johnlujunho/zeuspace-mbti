@@ -1,13 +1,12 @@
-import os
+import streamlit as st
 import time
 from collections import Counter
-from dataclasses import dataclass
-from typing import Dict, List, Any, Tuple, Optional
-import streamlit as st
+import os
 
-# =========================================================
-# 0) Page config
-# =========================================================
+# ==========================================
+# 1. 核心配置与自定义样式
+# ==========================================
+
 st.set_page_config(
     page_title="Zeuspace 交易员潜能评估系统",
     page_icon="⚡",
@@ -15,76 +14,65 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# =========================================================
-# 1) Styles (keep your style, but centralized)
-# =========================================================
-CSS = r"""
+# 注入自定义 CSS 以优化 UI (暗黑流体风格 + 高对比度修正)
+st.markdown("""
 <style>
+    /* 全局背景与字体 */
     .stApp {
         background-color: #0f172a;
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
         color: #e2e8f0;
     }
+    
+    /* 隐藏 Streamlit 默认元素 */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-
-    h1, h2, h3 { color: #f8fafc !important; }
-    p, li { color: #cbd5e1; }
-
-    .css-card {
-        background: rgba(30, 41, 59, 0.7);
-        backdrop-filter: blur(10px);
-        border: 1px solid #334155;
-        border-radius: 16px;
-        padding: 28px;
-        margin-bottom: 24px;
-        transition: border 0.3s;
+    
+    /* 标题高亮修正 */
+    h1, h2, h3 {
+        color: #f8fafc !important; /* 强制亮白 */
     }
-    .css-card:hover { border-color: #475569; }
-
-    div.stButton > button {
-        background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-        color: #e2e8f0;
-        border: 1px solid #334155;
-        border-radius: 12px;
-        padding: 16px 24px;
-        font-size: 16px;
-        font-weight: 500;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    p, li {
+        color: #cbd5e1;
+    }
+    
+    /* --- [新增] 人格形象图片样式 --- */
+    .hero-image-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 10px;
+        animation: fadeIn 1.5s ease-in-out;
+    }
+    
+    .hero-image-img {
         width: 100%;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        max-width: 350px; /* 限制最大宽度 */
+        border-radius: 20px;
+        /* 给图片加一个符合流体风格的蓝色光晕 */
+        box-shadow: 0 0 30px rgba(59, 130, 246, 0.3); 
+        transition: transform 0.3s ease;
     }
-    div.stButton > button:hover {
-        border-color: #60a5fa;
-        color: #ffffff;
-        transform: translateY(-2px);
-        box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2);
-    }
-    div.stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-        border: none;
-        color: white;
-        font-weight: 700;
-    }
-    div.stButton > button[kind="primary"]:hover {
-        background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
-        box-shadow: 0 0 25px rgba(59, 130, 246, 0.6);
+    
+    .hero-image-img:hover {
+        transform: scale(1.02);
+        box-shadow: 0 0 40px rgba(59, 130, 246, 0.5);
     }
 
-    .stProgress > div > div > div > div {
-        background: linear-gradient(90deg, #3b82f6, #06b6d4);
+    @keyframes fadeIn {
+        0% { opacity: 0; transform: translateY(20px); }
+        100% { opacity: 1; transform: translateY(0); }
     }
-
-    /* Result header */
+    
+    /* --- 新增结果页头部样式 --- */
     .result-header-container {
-        text-align: left;
-        padding: 10px 0 20px 0;
+        text-align: center;
+        padding: 20px 0 40px 0;
         border-bottom: 1px solid #334155;
-        margin-bottom: 25px;
+        margin-bottom: 30px;
     }
+    
     .archetype-badge {
         display: inline-block;
         background: rgba(59, 130, 246, 0.15);
@@ -96,42 +84,31 @@ CSS = r"""
         margin-bottom: 10px;
         border: 1px solid rgba(59, 130, 246, 0.3);
     }
+
     .main-title-gradient {
-        font-size: 2.6em;
-        font-weight: 900;
-        background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
-        -webkit-background-clip: text;
+        font-size: 2.8em; 
+        font-weight: 900; 
+        background: linear-gradient(135deg, #fff 0%, #94a3b8 100%); 
+        -webkit-background-clip: text; 
         -webkit-text-fill-color: transparent;
-        margin: 8px 0 10px 0;
+        margin: 10px 0 30px 0;
         letter-spacing: -1px;
     }
 
-    /* MBTI letters */
+    /* 4个维度卡片布局 */
     .traits-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 10px;
-        margin-top: 14px;
+        margin-top: 20px;
     }
-    .trait-box {
-        background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-        border: 1px solid #334155;
-        border-radius: 12px;
-        padding: 14px 6px;
-        text-align: center;
-        transition: transform 0.3s;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
+            
+    /* Tab 样式优化 */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: transparent;
+        padding-bottom: 0px;
     }
-    .trait-box:hover { transform: translateY(-4px); border-color: #60a5fa; }
-    .trait-letter { font-size: 2.0em; font-weight: 800; color: #60a5fa; line-height: 1; margin-bottom: 5px; }
-    .trait-name { color: #94a3b8; font-size: 0.78em; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; }
-    .trait-bar { width: 40px; height: 3px; background: #3b82f6; border-radius: 2px; margin-bottom: 0px; }
-
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] { gap: 8px; background-color: transparent; padding-bottom: 0px; }
     .stTabs [data-baseweb="tab"] {
         height: 45px;
         background-color: rgba(30, 41, 59, 0.4);
@@ -158,30 +135,136 @@ CSS = r"""
         margin-top: -1px;
     }
 
-    /* hero image */
-    .hero-image {
-        border-radius: 18px;
-        box-shadow: 0 0 30px rgba(59, 130, 246, 0.28);
-        border: 1px solid rgba(59,130,246,0.25);
-    }
-    .tiny-disclaimer {
+    /* 单个字母卡片 */
+    .trait-box {
+        background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 15px 5px;
         text-align: center;
-        color: #64748b;
+        transition: transform 0.3s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .trait-box:hover {
+        transform: translateY(-5px);
+        border-color: #60a5fa;
+    }
+
+    .trait-letter {
+        font-size: 2.2em;
+        font-weight: 800;
+        color: #fff;
+        line-height: 1;
+        margin-bottom: 5px;
+    }
+    
+    .trait-name {
+        color: #94a3b8;
         font-size: 0.8em;
-        margin-top: 25px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+    }
+    
+    .trait-bar {
+        width: 40px;
+        height: 3px;
+        background: #3b82f6;
+        border-radius: 2px;
+        margin-bottom: 8px;
+    }
+    
+    /* 按钮美化 */
+    div.stButton > button {
+        background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+        color: #e2e8f0;
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 16px 24px;
+        font-size: 16px;
+        font-weight: 500;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        width: 100%;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    div.stButton > button:hover {
+        border-color: #60a5fa;
+        color: #ffffff;
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2);
+    }
+    
+    /* 主按钮样式 (Primary) */
+    div.stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        border: none;
+        color: white;
+        font-weight: 700;
+    }
+    div.stButton > button[kind="primary"]:hover {
+        background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+        box-shadow: 0 0 25px rgba(59, 130, 246, 0.6);
+    }
+
+    /* 卡片容器 */
+    .css-card {
+        background: rgba(30, 41, 59, 0.7);
+        backdrop-filter: blur(10px);
+        border: 1px solid #334155;
+        border-radius: 16px;
+        padding: 28px;
+        margin-bottom: 24px;
+        transition: border 0.3s;
+    }
+    .css-card:hover {
+        border-color: #475569;
+    }
+    
+    /* 进度条颜色 */
+    .stProgress > div > div > div > div {
+        background: linear-gradient(90deg, #3b82f6, #06b6d4);
+    }
+    
+    /* 社交链接样式 (新) */
+    .social-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 12px;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.2s;
+        margin-bottom: 10px;
+    }
+    .social-linkedin {
+        background-color: #0077b5;
+        color: white !important;
+        border: 1px solid #0077b5;
+    }
+    .social-twitter {
+        background-color: #000000;
+        color: white !important;
+        border: 1px solid #333;
+    }
+    .social-btn:hover {
+        opacity: 0.9;
+        transform: scale(1.02);
     }
 </style>
-"""
-st.markdown(CSS, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-# =========================================================
-# 2) Data (keep yours; put behind cache)
-# =========================================================
+# ==========================================
+# 2. 深度人格数据库 (Zeuspace Pro Max 版)
+# ==========================================
 
-@st.cache_data(show_spinner=False)
-def load_questions_and_templates() -> Tuple[List[Dict[str, str]], Dict[str, Dict[str, Any]], Dict[str, Dict[str, str]], Dict[str, str]]:
-    
-    RAW_QUESTIONS = [
+# 仅保留新的高频交易/Crypto相关题目 (52题)，移除旧题以避免混淆和冗长
+RAW_QUESTIONS = [
     # --- E/I 能量维度：信息交互与心理防御 ---
     {
         'd': 'EI',
@@ -501,42 +584,48 @@ def load_questions_and_templates() -> Tuple[List[Dict[str, str]], Dict[str, Dict
         'a': "停止交易，重新回测和修正规则",
         'b': "相信概率，继续执行，或者凭感觉调整仓位"
     }
-    ]
+]
 
-    # ---- trait definitions ----
-    TRAIT_DESCRIPTIONS = {
-        'E': {'title': '外向型 (Extraverted)', 'icon': '⚡', 'desc': '从市场热度与群体互动中获取能量', 'tag': '市场共振'},
-        'I': {'title': '内向型 (Introverted)', 'icon': '🧘', 'desc': '通过独处复盘与深度思考获取能量', 'tag': '独立思考'},
-        'S': {'title': '实感型 (Observant)', 'icon': '📊', 'desc': '关注具体数据、K线形态与既定事实', 'tag': '现实主义'},
-        'N': {'title': '直觉型 (Intuitive)', 'icon': '🦄', 'desc': '关注宏观叙事、未来趋势与底层逻辑', 'tag': '理想主义'},
-        'T': {'title': '理智型 (Thinking)', 'icon': '⚖️', 'desc': '基于逻辑推演与盈亏比计算做决策', 'tag': '逻辑优先'},
-        'F': {'title': '情感型 (Feeling)', 'icon': '❤️', 'desc': '基于市场情绪感知与价值观做决策', 'tag': '情绪感知'},
-        'J': {'title': '计划型 (Judging)', 'icon': '📅', 'desc': '偏好详尽的交易计划与严格的纪律', 'tag': '秩序井然'},
-        'P': {'title': '展望型 (Prospecting)', 'icon': '🌊', 'desc': '偏好灵活应对盘面变化与随机应变', 'tag': '拥抱波动'}
-    }
+# MBTI 字母特质详细定义 (用于结果页头部展示)
+# ==========================================
+TRAIT_DESCRIPTIONS = {
+    'E': {'title': '外向型 (Extraverted)', 'icon': '⚡', 'desc': '从市场热度与群体互动中获取能量', 'tag': '市场共振'},
+    'I': {'title': '内向型 (Introverted)', 'icon': '🧘', 'desc': '通过独处复盘与深度思考获取能量', 'tag': '独立思考'},
+    'S': {'title': '实感型 (Observant)', 'icon': '📊', 'desc': '关注具体数据、K线形态与既定事实', 'tag': '现实主义'},
+    'N': {'title': '直觉型 (Intuitive)', 'icon': '🦄', 'desc': '关注宏观叙事、未来趋势与底层逻辑', 'tag': '理想主义'},
+    'T': {'title': '理智型 (Thinking)', 'icon': '⚖️', 'desc': '基于逻辑推演与盈亏比计算做决策', 'tag': '逻辑优先'},
+    'F': {'title': '情感型 (Feeling)', 'icon': '❤️', 'desc': '基于市场情绪感知与价值观做决策', 'tag': '情绪感知'},
+    'J': {'title': '计划型 (Judging)', 'icon': '📅', 'desc': '偏好详尽的交易计划与严格的纪律', 'tag': '秩序井然'},
+    'P': {'title': '展望型 (Prospecting)', 'icon': '🌊', 'desc': '偏好灵活应对盘面变化与随机应变', 'tag': '拥抱波动'}
+}
 
-    # ---- images ----
-    MBTI_IMAGES = {
-        'INTJ': os.path.join(SCRIPT_DIR, "static/images/INTJ.png"),
-        'ENTJ': os.path.join(SCRIPT_DIR, "static/images/ENTJ.png"),
-        'INTP': os.path.join(SCRIPT_DIR, "static/images/INTP.png"),
-        'ENTP': os.path.join(SCRIPT_DIR, "static/images/ENTP.png"),
-        'INFJ': os.path.join(SCRIPT_DIR, "static/images/INFJ.png"),
-        'INFP': os.path.join(SCRIPT_DIR, "static/images/INFP.png"),
-        'ENFJ': os.path.join(SCRIPT_DIR, "static/images/ENFJ.png"),
-        'ENFP': os.path.join(SCRIPT_DIR, "static/images/ENFP.png"),
-        'ISTJ': os.path.join(SCRIPT_DIR, "static/images/ISTJ.png"),
-        'ISFJ': os.path.join(SCRIPT_DIR, "static/images/ISFJ.png"),
-        'ESTJ': os.path.join(SCRIPT_DIR, "static/images/ESTJ.png"),
-        'ESFJ': os.path.join(SCRIPT_DIR, "static/images/ESFJ.png"),
-        'ISTP': os.path.join(SCRIPT_DIR, "static/images/ISTP.png"),
-        'ISFP': os.path.join(SCRIPT_DIR, "static/images/ISFP.png"),
-        'ESTP': os.path.join(SCRIPT_DIR, "static/images/ESTP.png"),
-        'ESFP': os.path.join(SCRIPT_DIR, "static/images/ESFP.png"),
-    }
+# ==========================================
+# 3. 报告模板数据库 (完整 16 型)
+# ==========================================
+# ==========================================
 
-    # ---- templates (paste your REPORT_TEMPLATES here unchanged) ----
-    REPORT_TEMPLATES = {
+# 获取脚本所在目录，用于构建正确的相对路径
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+MBTI_IMAGES = {
+    'INTJ': os.path.join(SCRIPT_DIR, "static/images/INTJ.png"),
+    'ENTJ': os.path.join(SCRIPT_DIR, "static/images/ENTJ.png"),
+    'INTP': os.path.join(SCRIPT_DIR, "static/images/INTP.png"),
+    'ENTP': os.path.join(SCRIPT_DIR, "static/images/ENTP.png"),
+    'INFJ': os.path.join(SCRIPT_DIR, "static/images/INFJ.png"),
+    'INFP': os.path.join(SCRIPT_DIR, "static/images/INFP.png"),
+    'ENFJ': os.path.join(SCRIPT_DIR, "static/images/ENFJ.png"),
+    'ENFP': os.path.join(SCRIPT_DIR, "static/images/ENFP.png"),
+    'ISTJ': os.path.join(SCRIPT_DIR, "static/images/ISTJ.png"),
+    'ISFJ': os.path.join(SCRIPT_DIR, "static/images/ISFJ.png"),
+    'ESTJ': os.path.join(SCRIPT_DIR, "static/images/ESTJ.png"),
+    'ESFJ': os.path.join(SCRIPT_DIR, "static/images/ESFJ.png"),
+    'ISTP': os.path.join(SCRIPT_DIR, "static/images/ISTP.png"),
+    'ISFP': os.path.join(SCRIPT_DIR, "static/images/ISFP.png"),
+    'ESTP': os.path.join(SCRIPT_DIR, "static/images/ESTP.png"),
+    'ESFP': os.path.join(SCRIPT_DIR, "static/images/ESFP.png"),
+}
+REPORT_TEMPLATES = {
     'INTJ': {
         'archetype': "全知视角的系统架构师 (The Mastermind)",
         'tagline': "我不预测未来，我构建未来。",
@@ -987,530 +1076,474 @@ def load_questions_and_templates() -> Tuple[List[Dict[str, str]], Dict[str, Dict
     }
 }
 
-    return RAW_QUESTIONS, REPORT_TEMPLATES, TRAIT_DESCRIPTIONS, MBTI_IMAGES
+# ==========================================
+# 4. 逻辑控制与状态管理
+# ==========================================
 
+if 'step' not in st.session_state:
+    st.session_state.step = 'intro'
+if 'current_idx' not in st.session_state:
+    st.session_state.current_idx = 0
+if 'answers' not in st.session_state:
+    st.session_state.answers = {}
+if 'mbti_result' not in st.session_state:
+    st.session_state.mbti_result = ''
 
-RAW_QUESTIONS, REPORT_TEMPLATES, TRAIT_DESCRIPTIONS, MBTI_IMAGES = load_questions_and_templates()
-
-# Safety: if you forgot to paste data
-if not RAW_QUESTIONS:
-    st.error("你还没把 RAW_QUESTIONS 粘贴进新文件。请把原文件的 RAW_QUESTIONS 整段复制到 load_questions_and_templates() 里。")
-    st.stop()
-
-# =========================================================
-# 3) State machine
-# =========================================================
-class Step:
-    INTRO = "intro"
-    QUIZ = "quiz"
-    ANALYZING = "analyzing"
-    RESULT = "result"
-    CONTACT = "contact"
-
-def init_state():
-    st.session_state.setdefault("step", Step.INTRO)
-    st.session_state.setdefault("current_idx", 0)
-    st.session_state.setdefault("answers", {})     # idx -> chosen letter (E/I/S/N/T/F/J/P)
-    st.session_state.setdefault("mbti_result", "")
-    st.session_state.setdefault("radar_scores", {'风控力': 50, '心态值': 50, '敏捷度': 50, '宏观感': 50, '执行力': 50})
-
-init_state()
-
-# =========================================================
-# 4) Referral / share params (for growth)
-# =========================================================
-# Example: https://yourapp/?ref=wechat_kol01
-ref = st.query_params.get("ref", "")
-
-def share_link(mbti: Optional[str] = None) -> str:
-    # Streamlit doesn't know its public URL at runtime reliably; show path-based share instructions.
-    # If you deploy, replace BASE_URL in secrets or env.
-    base_url = os.environ.get("BASE_URL", "").strip()
-    if not base_url:
-        return "（部署后设置 BASE_URL 环境变量可生成可复制链接）"
-    if mbti:
-        return f"{base_url}?ref={ref}&mbti={mbti}"
-    return f"{base_url}?ref={ref}"
-
-# =========================================================
-# 5) Core logic
-# =========================================================
-def handle_answer(choice_letter: str):
-    idx = st.session_state.current_idx
-    st.session_state.answers[idx] = choice_letter
-
-    if idx < len(RAW_QUESTIONS) - 1:
+def handle_option(value):
+    st.session_state.answers[st.session_state.current_idx] = value
+    if st.session_state.current_idx < len(RAW_QUESTIONS) - 1:
         st.session_state.current_idx += 1
     else:
-        st.session_state.step = Step.ANALYZING
+        st.session_state.step = 'analyzing'
         calculate_result()
 
 def calculate_result():
     scores = Counter(st.session_state.answers.values())
-
+    
     e, i = scores.get('E', 0), scores.get('I', 0)
     s, n = scores.get('S', 0), scores.get('N', 0)
     t, f = scores.get('T', 0), scores.get('F', 0)
     j, p = scores.get('J', 0), scores.get('P', 0)
-
+    
     dim1 = 'E' if e >= i else 'I'
     dim2 = 'S' if s >= n else 'N'
     dim3 = 'T' if t >= f else 'F'
     dim4 = 'J' if j >= p else 'P'
-    mbti = f"{dim1}{dim2}{dim3}{dim4}"
-    st.session_state.mbti_result = mbti
+    mbti_type = f"{dim1}{dim2}{dim3}{dim4}"
+    st.session_state.mbti_result = mbti_type
 
-    total_ei = max(e + i, 1)
-    total_sn = max(s + n, 1)
-    total_tf = max(t + f, 1)
-    total_jp = max(j + p, 1)
+    total_ei = e + i if (e + i) > 0 else 1
+    total_sn = s + n if (s + n) > 0 else 1
+    total_tf = t + f if (t + f) > 0 else 1
+    total_jp = j + p if (j + p) > 0 else 1
 
     pct_e = int((e / total_ei) * 100)
     pct_n = int((n / total_sn) * 100)
     pct_t = int((t / total_tf) * 100)
     pct_j = int((j / total_jp) * 100)
     pct_p = int((p / total_jp) * 100)
-
-    st.session_state.radar_scores = {
+    
+    radar_scores = {
         '风控力': int((pct_j * 0.6 + pct_t * 0.4)),
-        '心态值': int((pct_t * 0.7 + (100 - pct_e) * 0.3)),
+        '心态值': int((pct_t * 0.7 + (100-pct_e) * 0.3)),
         '敏捷度': int((pct_p * 0.6 + pct_e * 0.4)),
         '宏观感': int(pct_n),
-        '执行力': int(pct_j),
+        '执行力': int(pct_j)
     }
+    
+    st.session_state.radar_scores = radar_scores
 
-def reset_all():
-    st.session_state.step = Step.INTRO
+def reset_test():
+    st.session_state.step = 'intro'
     st.session_state.current_idx = 0
     st.session_state.answers = {}
-    st.session_state.mbti_result = ""
-    st.session_state.radar_scores = {'风控力': 50, '心态值': 50, '敏捷度': 50, '宏观感': 50, '执行力': 50}
+    st.session_state.mbti_result = ''
 
-# =========================================================
-# 6) Render helpers
-# =========================================================
+
+# ---------- 渲染辅助函数（将大块 HTML 提取为函数，便于维护）
 def build_traits_html(mbti: str) -> str:
-    blocks = []
-    for ch in mbti:
-        meta = TRAIT_DESCRIPTIONS.get(ch, {'tag': '未知'})
-        blocks.append(
-            f"""
-            <div class="trait-box">
-                <div class="trait-letter">{ch}</div>
-                <div class="trait-name">{meta.get('tag','')}</div>
-                <div class="trait-bar"></div>
-            </div>
-            """
-        )
-    return "\n".join(blocks)
+    traits_html = ""
+    for char in mbti:
+        t_data = TRAIT_DESCRIPTIONS.get(char, {'tag': '未知', 'desc': ''})
+        traits_html += f"""<div class="trait-box">
+<div class="trait-letter" style="color: #60a5fa;">{char}</div>
+<div class="trait-name">{t_data['tag']}</div>
+<div class="trait-bar"></div>
+</div>"""
+    return traits_html
 
-def radar_bars_html(radar_scores: Dict[str, int]) -> str:
-    rows = []
+
+def render_result_header(mbti: str, archetype_name: str, template: dict) -> None:
+    traits_html = build_traits_html(mbti)
+    st.markdown(f"""
+<div class="result-header-container">
+<div class="archetype-badge">ZEUS TRADING PROFILE • {mbti}</div>
+<h1 class="main-title-gradient">{archetype_name}</h1>
+<p style="color: #64748b; font-size: 1.1em; margin-top: -15px; font-weight: 500;">{template.get('archetype', '')}</p>
+<div style="font-size: 1.3em; font-style: italic; color: #e2e8f0; margin: 20px 0; font-family: 'Georgia', serif;">
+“{template.get('tagline', '')}”
+</div>
+<div class="traits-grid" style="max-width: 700px; margin: 0 auto;">
+{traits_html}
+</div>
+</div>
+""", unsafe_allow_html=True)
+
+
+def get_radar_html(radar_scores: dict) -> str:
+    radar_html = ""
     for k, v in radar_scores.items():
         bar_color = "#4ade80" if v >= 75 else ("#60a5fa" if v >= 50 else "#f87171")
-        rows.append(
-            f"""
-            <div style="margin-bottom: 12px;">
-              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                <span style="color:#94a3b8; font-size:0.85em; font-weight:600;">{k}</span>
-                <span style="color:{bar_color}; font-weight:800; font-size:0.9em;">{v}</span>
-              </div>
-              <div style="height:6px; background:#334155; border-radius:3px; overflow:hidden;">
-                <div style="width:{v}%; height:100%; background:{bar_color}; border-radius:3px; box-shadow:0 0 10px {bar_color};"></div>
-              </div>
-            </div>
-            """
-        )
-    return "\n".join(rows)
+        radar_html += f"""
+<div style="margin-bottom: 12px;">
+<div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+<span style="color: #94a3b8; font-size: 0.85em; font-weight: 600;">{k}</span>
+<span style="color: {bar_color}; font-weight: bold; font-size: 0.9em;">{v}</span>
+</div>
+<div style="height: 6px; background: #334155; border-radius: 3px; overflow: hidden;">
+<div style="width: {v}%; height: 100%; background: {bar_color}; border-radius: 3px; box-shadow: 0 0 10px {bar_color};"></div>
+</div>
+</div>"""
+    return radar_html
 
-def safe_template(mbti: str) -> Dict[str, Any]:
+
+# ==========================================
+# 5. 页面视图 (Views)
+# ==========================================
+
+# --- 首页 ---
+if st.session_state.step == 'intro':
+    st.markdown("""
+    <div style='text-align: center; padding: 60px 0;'>
+        <div style='display: inline-block; padding: 8px 16px; background: rgba(59, 130, 246, 0.1); border-radius: 20px; color: #60a5fa; margin-bottom: 20px; font-size: 0.9em; border: 1px solid rgba(59, 130, 246, 0.2);'>
+            ⚡ Zeuspace Trading Lab · 交易员潜能评估系统
+        </div>
+        <h1 style='font-size: 3.5em; font-weight: 800; background: linear-gradient(to right, #ffffff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 20px; color: white;'>
+            你的性格，<br>决定你的<span style='color: #4ade80; -webkit-text-fill-color: #4ade80;'>盈亏比</span>
+        </h1>
+        <p style='color: #cbd5e1; font-size: 1.2em; line-height: 1.6; max-width: 600px; margin: 0 auto 40px auto;'>
+            这不仅仅是心理测试。Zeuspace 结合行为金融学与 MBTI 深度量表，
+            为您揭示潜意识中的交易行为模式，并匹配适合您性格的交易赛道。
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c2:
+        if st.button("开始深度测评 →", type="primary", use_container_width=True):
+            st.session_state.step = 'quiz'
+            st.rerun()
+            
+    st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.8em; margin-top: 40px;'>Zeuspace Research • 非投资建议</p>", unsafe_allow_html=True)
+
+# --- 答题页 ---
+elif st.session_state.step == 'quiz':
+    q_data = RAW_QUESTIONS[st.session_state.current_idx]
+    progress = (st.session_state.current_idx + 1) / len(RAW_QUESTIONS)
+    
+    st.progress(progress)
+    st.caption(f"Question {st.session_state.current_idx + 1}/{len(RAW_QUESTIONS)} • {q_data['d']} 维度")
+    
+    st.markdown(f"""
+    <div style='min-height: 180px; display: flex; flex-direction: column; justify-content: center; margin: 20px 0;'>
+        <h2 style='font-size: 1.8em; font-weight: 600; color: #f8fafc;'>{q_data['text']}</h2>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button(q_data['a'], use_container_width=True):
+            handle_option(q_data['d'][0])
+            st.rerun()
+    with col2:
+        if st.button(q_data['b'], use_container_width=True):
+            handle_option(q_data['d'][1])
+            st.rerun()
+
+# --- 分析页 ---
+elif st.session_state.step == 'analyzing':
+    st.markdown("<div style='height: 30vh;'></div>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #60a5fa;'>Zeuspace Neural Engine</h2>", unsafe_allow_html=True)
+    
+    status_text = st.empty()
+    bar = st.progress(0)
+    
+    for i in range(100):
+        time.sleep(0.01) 
+        bar.progress(i + 1)
+        if i == 30: status_text.markdown("<p style='text-align:center'>正在解析行为金融学数据...</p>", unsafe_allow_html=True)
+        elif i == 60: status_text.markdown("<p style='text-align:center'>匹配全球资产风险偏好...</p>", unsafe_allow_html=True)
+        elif i == 90: status_text.markdown("<p style='text-align:center'>生成个性化分析报告...</p>", unsafe_allow_html=True)
+            
+    st.session_state.step = 'result'
+    st.rerun()
+
+# --- 结果页 ---
+# --- 结果页 (Zeuspace Professional View) ---
+# --- 结果页 (Zeuspace Professional View) ---
+elif st.session_state.step == 'result':
+    mbti = st.session_state.mbti_result
+    
+    # 1. 获取数据
     default_data = {
-        'archetype': f"未定义类型 ({mbti})",
-        'tagline': "数据加载中...",
-        'cognitive': "暂无数据",
-        'blindspot': "暂无数据",
-        'markets': "暂无",
-        'strategy': "暂无",
-        'win_condition': "暂无",
-        'loss_trigger': "暂无",
-        'strengths': [],
-        'weaknesses': [],
-        'tools': [],
-        'partners': "暂无",
+        'archetype': f"未定义类型 ({mbti})", 'tagline': "数据加载中...", 
+        'cognitive': "暂无数据", 'blindspot': "暂无数据",
+        'markets': "暂无", 'strategy': "暂无", 'win_condition': "暂无", 'loss_trigger': "暂无",
+        'strengths': [], 'weaknesses': [], 'tools': [], 'partners': "暂无",
         'desk_setup': "暂无配置建议",
         'evolution': {'lvl1': 'N/A', 'lvl2': 'N/A', 'lvl3': 'N/A'}
     }
-    return REPORT_TEMPLATES.get(mbti, default_data)
+    template = REPORT_TEMPLATES.get(mbti, default_data)
+    radar_scores = st.session_state.get('radar_scores', {'风控力':50, '心态值':50, '敏捷度':50, '宏观感':50, '执行力':50})
 
-def archetype_name_from(full_archetype: str) -> str:
-    return full_archetype.split("(")[0].strip() if "(" in full_archetype else full_archetype.strip()
+    # 解析标题名称
+    full_archetype = template.get('archetype', f"Trader ({mbti})")
+    if '(' in full_archetype:
+        archetype_name = full_archetype.split('(')[0]
+    else:
+        archetype_name = full_archetype
 
-def render_topbar():
-    # tiny research label
-    st.markdown(
-        """
-        <div style="text-align:center; margin-top: 6px;">
-            <span style="display:inline-block; padding:6px 12px; border-radius:999px;
-                         background: rgba(59,130,246,0.10); color:#60a5fa;
-                         border:1px solid rgba(59,130,246,0.22); font-weight:700; font-size:0.85em;">
-                ⚡ Zeuspace Trading Lab · Behavioral Finance Signal
-            </span>
+    # -------------------------------------------------------
+    # [修改重点] 顶部 Hero Section (图文并茂版)
+    # -------------------------------------------------------
+    
+    # 1. 获取图片路径 (默认显示 INTJ 或一张占位图)
+    image_path = MBTI_IMAGES.get(mbti, os.path.join(SCRIPT_DIR, "static/images/INTJ.png")) 
+    
+    # 2. 创建两栏布局：左侧文字，右侧图片 (或者反过来，根据喜好)
+    # 参数 [1.2, 1] 表示左侧文字栏比右侧图片栏稍宽
+    hero_col1, hero_col2 = st.columns([1.2, 0.8])
+    
+    with hero_col1:
+        # 左侧：显示 徽章 + 标题 + Slogan + 描述
+        st.markdown(f"""
+        <div style="text-align: left; padding-top: 20px;">
+            <div class="archetype-badge">ZEUS TRADING PROFILE • {mbti}</div>
+            <h1 class="main-title-gradient" style="font-size: 3em; margin: 10px 0;">{archetype_name}</h1>
+            <div style="font-size: 1.4em; font-style: italic; color: #60a5fa; margin-bottom: 20px; font-family: 'Georgia', serif; border-left: 4px solid #60a5fa; padding-left: 15px;">
+            “{template.get('tagline', '')}”
+            </div>
+            <p style="color: #94a3b8; font-size: 1.1em; line-height: 1.6;">
+            {template.get('cognitive', '')[:120]}... </p>
         </div>
-        """,
-        unsafe_allow_html=True
-    )
+        """, unsafe_allow_html=True)
+    
+    with hero_col2:
+        # 右侧：显示人物插图
+        # 注意：如果是本地图片，确保路径正确；如果是URL，Streamlit会自动加载
+        try:
+            # 使用 st.image 渲染，并应用自定义 CSS class
+            # 注意：st.image 默认不支持直接加 class，我们用外层 div 包裹或者直接渲染
+            st.markdown('<div class="hero-image-container">', unsafe_allow_html=True)
+            st.image(image_path, use_container_width=True) 
+            st.markdown('</div>', unsafe_allow_html=True)
+        except Exception:
+            # 如果找不到图片，显示占位符
+            st.error(f"Image not found: {image_path}")
 
-# =========================================================
-# 7) Views
-# =========================================================
-render_topbar()
-
-if st.session_state.step == Step.INTRO:
-    st.markdown(
-        """
-        <div style="text-align:center; padding: 46px 0 18px 0;">
-            <h1 style="font-size: 3.2em; font-weight: 900; margin-bottom: 12px;
-                       background: linear-gradient(to right, #ffffff, #94a3b8);
-                       -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                你的性格，决定你的盈亏比
-            </h1>
-            <p style="color:#cbd5e1; font-size:1.15em; line-height:1.7; max-width: 660px; margin: 0 auto;">
-                Zeuspace 将 MBTI 行为特征映射到交易风控、执行模式与叙事偏好，
-                输出可操作的交易人格画像（非投资建议）。
-            </p>
+    # 3. 渲染下方的四个字母维度 (这部分保持宽屏展示)
+    traits_html = build_traits_html(mbti)
+    st.markdown(f"""
+    <div style="margin-top: 30px; margin-bottom: 40px;">
+        <div class="traits-grid">
+            {traits_html}
         </div>
-        """,
-        unsafe_allow_html=True
-    )
-    c1, c2, c3 = st.columns([1, 2, 1])
+    </div>
+    <div style="height: 1px; background: #334155; margin: 20px 0 40px 0;"></div>
+    """, unsafe_allow_html=True)
+    # -------------------------------------------------------
+    # 核心仪表盘
+    # -------------------------------------------------------
+    c1, c2 = st.columns([1.3, 1])
+    
+    with c1:
+        # 【修复点3】HTML 字符串顶格
+        st.markdown(f"""
+<div class="css-card" style="height: 100%;">
+<h3 style="color: #fff; margin-top: 0; display: flex; align-items: center;">
+<span style="margin-right: 10px;">🧠</span> 认知内核 (Cognitive Core)
+</h3>
+<div style="color: #cbd5e1; line-height: 1.7; font-size: 1em; text-align: justify; margin-bottom: 20px;">
+{template['cognitive']}
+</div>
+<div style="padding: 15px; background: rgba(248, 113, 113, 0.1); border-left: 3px solid #f87171; border-radius: 4px;">
+<strong style="color: #f87171; display: block; margin-bottom: 5px;">⚠️ 致命盲区 (Blindspot)</strong>
+<span style="color: #e2e8f0; font-size: 0.95em;">{template['blindspot']}</span>
+</div>
+</div>
+""", unsafe_allow_html=True)
+        
     with c2:
-        if st.button("开始测评 →", type="primary", use_container_width=True):
-            st.session_state.step = Step.QUIZ
-            st.rerun()
+        radar_html = get_radar_html(radar_scores)
+        
+        st.markdown(f"""
+<div class="css-card" style="height: 100%;">
+<h4 style="margin-top: 0; color: #fff; margin-bottom: 20px;">📊 交易员五维属性</h4>
+{radar_html}
+</div>
+""", unsafe_allow_html=True)
 
-    st.markdown(
-        f"""
-        <div class="tiny-disclaimer">
-            Zeuspace Research • For education & research only • ref={ref if ref else "direct"}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    # -------------------------------------------------------
+    # 深度详情 Tabs
+    # -------------------------------------------------------
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "⚔️ 战场策略 (Strategy)", 
+        "🧬 基因优势 (Alpha)", 
+        "🛠️ 装备环境 (Setup)", 
+        "🚀 进化路线 (Evolution)"
+    ])
+    
+    # --- Tab 1: 策略与市场 ---
+    with tab1:
+        st.markdown(f"""
+<h3 style="color: #facc15; margin-top: 0;">🌍 适配战场 (Markets)</h3>
+<p style="color: #cbd5e1; background: rgba(15, 23, 42, 0.5); padding: 15px; border-radius: 8px; border: 1px solid #334155;">
+{template.get('markets', '全市场通用')}
+</p>
 
-elif st.session_state.step == Step.QUIZ:
-    idx = st.session_state.current_idx
-    q = RAW_QUESTIONS[idx]
-    progress = (idx + 1) / len(RAW_QUESTIONS)
+<h3 style="color: #4ade80; margin-top: 25px;">🎯 建议策略 (Playbook)</h3>
+<p style="color: #cbd5e1; line-height: 1.6;">{template.get('strategy', '趋势跟踪')}</p>
 
-    st.progress(progress)
-    st.caption(f"Question {idx + 1}/{len(RAW_QUESTIONS)} • {q['d']} 维度")
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 25px;">
+<div style="background: rgba(16, 185, 129, 0.1); padding: 20px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.2);">
+<strong style="color: #34d399; font-size: 1.1em;">✅ 胜利方程式 (Win Condition)</strong>
+<p style="font-size: 0.95em; color: #d1fae5; margin-top: 10px; line-height: 1.5;">{template.get('win_condition', '顺势而为')}</p>
+</div>
+<div style="background: rgba(239, 68, 68, 0.1); padding: 20px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.2);">
+<strong style="color: #f87171; font-size: 1.1em;">💀 爆仓扳机 (Loss Trigger)</strong>
+<p style="font-size: 0.95em; color: #fee2e2; margin-top: 10px; line-height: 1.5;">{template.get('loss_trigger', '逆势抗单')}</p>
+</div>
+</div>
+""", unsafe_allow_html=True)
 
-    st.markdown(
-        f"""
-        <div class="css-card" style="min-height: 150px; display:flex; flex-direction:column; justify-content:center;">
-            <h2 style="font-size: 1.7em; font-weight: 750; margin: 0;">{q['text']}</h2>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    # --- Tab 2: 优势与弱点 ---
+    with tab2:
+        s_li = "".join([f"<li style='margin-bottom:8px; color:#cbd5e1;'>{s}</li>" for s in template.get('strengths', [])])
+        w_li = "".join([f"<li style='margin-bottom:8px; color:#cbd5e1;'>{w}</li>" for w in template.get('weaknesses', [])])
+        
+        st.markdown(f"""
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+<div style="background: rgba(30, 41, 59, 0.5); padding: 20px; border-radius: 12px; border-top: 3px solid #4ade80;">
+<h3 style="color: #4ade80; margin-top: 0; font-size: 1.2em;">⚡ 你的 Alpha (优势)</h3>
+<ul style="padding-left: 20px; margin-bottom: 0;">{s_li}</ul>
+</div>
+<div style="background: rgba(30, 41, 59, 0.5); padding: 20px; border-radius: 12px; border-top: 3px solid #f87171;">
+<h3 style="color: #f87171; margin-top: 0; font-size: 1.2em;">🥀 你的 Risk (弱点)</h3>
+<ul style="padding-left: 20px; margin-bottom: 0;">{w_li}</ul>
+</div>
+</div>
+<div style="margin-top: 20px; padding: 15px; background: linear-gradient(90deg, rgba(30,41,59,0.8) 0%, rgba(15,23,42,0.8) 100%); border: 1px solid #3b82f6; border-radius: 12px;">
+<strong style="color: #60a5fa;">🤝 最佳互补拍档</strong>
+<p style="color: #e2e8f0; margin-top: 5px; margin-bottom: 0;">{template.get('partners', '寻找风控官')}</p>
+</div>
+""", unsafe_allow_html=True)
 
+    # --- Tab 3: 环境与工具 ---
+    with tab3:
+        # 【修复点5】列表推导式中的 HTML 字符串也必须顶格
+        tools_html = "".join([f"""<span style='display:inline-block; background:#0f172a; padding:6px 14px; border-radius:20px; border:1px solid #334155; margin:0 8px 8px 0; font-size:0.9em; color:#94a3b8; transition: all 0.2s;'>
+🛠️ {t}
+</span>""" for t in template.get('tools', [])])
+        
+        st.markdown(f"""
+<h3 style="color: #e2e8f0; margin-top: 0;">🖥️ 物理战场配置 (Desk Setup)</h3>
+<div style="background: #0f172a; padding: 25px; border-radius: 12px; margin-bottom: 25px; white-space: pre-line; color: #cbd5e1; line-height: 1.8; border: 1px solid #1e293b;">
+{template.get('desk_setup', '保持整洁，减少干扰。')}
+</div>
+
+<h3 style="color: #e2e8f0;">🧰 推荐武器库 (Tools)</h3>
+<div style="margin-top: 15px;">
+{tools_html}
+</div>
+""", unsafe_allow_html=True)
+
+    # --- Tab 4: 进化路线 ---
+    with tab4:
+        evo = template.get('evolution', {'lvl1': 'Loading...', 'lvl2': 'Loading...', 'lvl3': 'Loading...'})
+        st.markdown(f"""
+<div style="position: relative; padding-left: 20px; border-left: 2px solid #334155; margin-left: 10px;">
+
+<div style="margin-bottom: 40px; position: relative;">
+<div style="position: absolute; left: -26px; top: 0; width: 10px; height: 10px; background: #94a3b8; border-radius: 50%;"></div>
+<div style="font-size: 0.8em; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Level 1 • 觉醒前</div>
+<strong style="color: #cbd5e1; font-size: 1.2em;">🐣 新手陷阱</strong>
+<p style="color: #64748b; margin-top: 8px; line-height: 1.6;">{evo.get('lvl1')}</p>
+</div>
+
+<div style="margin-bottom: 40px; position: relative;">
+<div style="position: absolute; left: -26px; top: 0; width: 10px; height: 10px; background: #60a5fa; border-radius: 50%; box-shadow: 0 0 10px #60a5fa;"></div>
+<div style="font-size: 0.8em; color: #60a5fa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Level 2 • 蜕变期</div>
+<strong style="color: #fff; font-size: 1.2em;">🦋 规则建立</strong>
+<p style="color: #94a3b8; margin-top: 8px; line-height: 1.6;">{evo.get('lvl2')}</p>
+</div>
+
+<div style="position: relative;">
+<div style="position: absolute; left: -26px; top: 0; width: 10px; height: 10px; background: #4ade80; border-radius: 50%; box-shadow: 0 0 15px #4ade80;"></div>
+<div style="font-size: 0.8em; color: #4ade80; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Level 3 • 终极形态</div>
+<strong style="color: #4ade80; font-size: 1.2em;">🦁 顶级猎手</strong>
+<p style="color: #cbd5e1; margin-top: 8px; line-height: 1.6;">{evo.get('lvl3')}</p>
+</div>
+</div>
+""", unsafe_allow_html=True)
+
+    # -------------------------------------------------------
+    # 底部行动区
+    # -------------------------------------------------------
+    st.divider()
+    st.markdown(f"""
+<div style='text-align: center; margin-bottom: 30px;'>
+<h3 style='color: white; margin-bottom: 10px;'>🚀 Ready to Upgrade?</h3>
+<p style='color: #94a3b8; font-size: 0.95em;'>
+加入 Zeuspace Pro 核心圈子，获取属于 <strong>{mbti}</strong> 的每日量化策略信号。
+</p>
+</div>
+""", unsafe_allow_html=True)
+    
     col1, col2 = st.columns(2)
     with col1:
-        if st.button(q["a"], use_container_width=True):
-            handle_answer(q["d"][0])
+        if st.button("联系我们 👨‍🏫", type="primary", use_container_width=True):
+            st.session_state.step = 'contact_sales'
             st.rerun()
     with col2:
-        if st.button(q["b"], use_container_width=True):
-            handle_answer(q["d"][1])
+        if st.button("🔄 重置测试 (Reset)", type="secondary", use_container_width=True):
+            reset_test()
             st.rerun()
+            
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("""
+<div style='display: grid; grid-template-columns: 1fr 1fr; gap: 15px;'>
+<a href="#" class="social-btn social-linkedin"><span>🔗 LinkedIn Profile</span></a>
+<a href="#" class="social-btn social-twitter"><span>🐦 Twitter Insight</span></a>
+</div>
+<div style='text-align:center; margin-top:30px; color:#475569; font-size:0.8em;'>
+Zeuspace Neural Engine v2.4 • Powered by Behavioral Finance
+</div>
+""", unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("← 返回报告页面"):
+        st.session_state.step = 'result'
+        st.rerun()
 
-    # back / reset
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("← 上一题", use_container_width=True, disabled=(idx == 0)):
-            st.session_state.current_idx = max(idx - 1, 0)
-            st.rerun()
-    with c2:
-        if st.button("重置测评", use_container_width=True):
-            reset_all()
-            st.rerun()
-
-elif st.session_state.step == Step.ANALYZING:
-    st.markdown("<div style='height: 18vh;'></div>", unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align:center; color:#60a5fa;'>Zeuspace Neural Engine</h2>", unsafe_allow_html=True)
-
-    status_text = st.empty()
-    bar = st.progress(0)
-
-    for i in range(100):
-        time.sleep(0.012)
-        bar.progress(i + 1)
-        if i == 25:
-            status_text.markdown("<p style='text-align:center'>正在解析行为金融学特征...</p>", unsafe_allow_html=True)
-        elif i == 55:
-            status_text.markdown("<p style='text-align:center'>校准风险偏好与执行模式...</p>", unsafe_allow_html=True)
-        elif i == 85:
-            status_text.markdown("<p style='text-align:center'>生成交易人格画像与行动建议...</p>", unsafe_allow_html=True)
-
-    st.session_state.step = Step.RESULT
-    st.rerun()
-
-elif st.session_state.step == Step.RESULT:
-    mbti = st.session_state.mbti_result or "INTJ"
-    t = safe_template(mbti)
-    radar = st.session_state.radar_scores
-
-    full_arch = t.get("archetype", f"Trader ({mbti})")
-    arch_name = archetype_name_from(full_arch)
-    traits_html = build_traits_html(mbti)
-
-    # hero layout
-    colA, colB = st.columns([1.35, 0.85])
-    with colA:
-        st.markdown(
-            f"""
-            <div class="result-header-container">
-                <div class="archetype-badge">ZEUS TRADING PROFILE • {mbti}</div>
-                <div class="main-title-gradient">{arch_name}</div>
-                <div style="color:#94a3b8; font-size: 1.05em; margin-top:-2px;">{full_arch}</div>
-                <div style="margin-top: 14px; color:#60a5fa; font-size: 1.2em; font-style: italic; border-left: 4px solid #60a5fa; padding-left: 14px;">
-                    “{t.get('tagline','')}”
-                </div>
-                <div style="margin-top: 14px; color:#cbd5e1; line-height:1.7;">
-                    {t.get('cognitive','')[:160]}...
-                </div>
-                <div class="traits-grid" style="margin-top: 18px;">
-                    {traits_html}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    with colB:
-        img = MBTI_IMAGES.get(mbti, MBTI_IMAGES.get("INTJ"))
-        if img and os.path.exists(img):
-            st.image(img, use_container_width=True)
-        else:
-            st.markdown(
-                """
-                <div class="css-card" style="text-align:center;">
-                    <div style="font-size:2.2em;">🧬</div>
-                    <div style="color:#94a3b8;">Illustration missing</div>
-                    <div style="color:#64748b; font-size:0.9em; margin-top:6px;">
-                        将图片放到 static/images/TYPE.png
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-    # core dashboard
-    c1, c2 = st.columns([1.35, 1])
-    with c1:
-        st.markdown(
-            f"""
-            <div class="css-card" style="height:100%;">
-                <h3 style="margin-top:0; display:flex; align-items:center; gap:10px;">
-                    🧠 认知内核 (Cognitive Core)
-                </h3>
-                <div style="color:#cbd5e1; line-height:1.75; text-align:justify;">
-                    {t.get('cognitive','')}
-                </div>
-                <div style="margin-top:18px; padding: 14px; background: rgba(248,113,113,0.10);
-                            border-left: 3px solid #f87171; border-radius: 8px;">
-                    <div style="color:#f87171; font-weight:800; margin-bottom:6px;">⚠️ Blindspot</div>
-                    <div style="color:#e2e8f0;">{t.get('blindspot','')}</div>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-    with c2:
-        st.markdown(
-            f"""
-            <div class="css-card" style="height:100%;">
-                <h4 style="margin-top:0; margin-bottom:14px;">📊 Trader Attributes</h4>
-                {radar_bars_html(radar)}
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    # tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["⚔️ Strategy", "🧬 Alpha", "🛠️ Setup", "🚀 Evolution"])
-
-    with tab1:
-        st.markdown(
-            f"""
-            <h3 style="color:#facc15; margin-top:0;">🌍 Markets</h3>
-            <div style="background: rgba(15,23,42,0.5); padding: 14px; border-radius: 10px; border: 1px solid #334155;">
-                {t.get('markets','')}
-            </div>
-            <h3 style="color:#4ade80; margin-top:18px;">🎯 Playbook</h3>
-            <div style="color:#cbd5e1; line-height:1.7;">{t.get('strategy','')}</div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap: 14px; margin-top: 16px;">
-                <div style="background: rgba(16,185,129,0.10); padding: 16px; border-radius: 12px; border:1px solid rgba(16,185,129,0.22);">
-                    <div style="color:#34d399; font-weight:900;">✅ Win Condition</div>
-                    <div style="color:#d1fae5; margin-top:8px; line-height:1.6;">{t.get('win_condition','')}</div>
-                </div>
-                <div style="background: rgba(239,68,68,0.10); padding: 16px; border-radius: 12px; border:1px solid rgba(239,68,68,0.22);">
-                    <div style="color:#f87171; font-weight:900;">💀 Loss Trigger</div>
-                    <div style="color:#fee2e2; margin-top:8px; line-height:1.6;">{t.get('loss_trigger','')}</div>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    with tab2:
-        s_li = "".join([f"<li style='margin-bottom:8px; color:#cbd5e1;'>{x}</li>" for x in t.get('strengths', [])])
-        w_li = "".join([f"<li style='margin-bottom:8px; color:#cbd5e1;'>{x}</li>" for x in t.get('weaknesses', [])])
-        st.markdown(
-            f"""
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap: 14px;">
-                <div style="background: rgba(30,41,59,0.45); padding: 16px; border-radius: 12px; border-top: 3px solid #4ade80;">
-                    <h3 style="color:#4ade80; margin-top:0; font-size:1.15em;">⚡ Strengths</h3>
-                    <ul style="padding-left: 18px; margin-bottom:0;">{s_li}</ul>
-                </div>
-                <div style="background: rgba(30,41,59,0.45); padding: 16px; border-radius: 12px; border-top: 3px solid #f87171;">
-                    <h3 style="color:#f87171; margin-top:0; font-size:1.15em;">🥀 Weaknesses</h3>
-                    <ul style="padding-left: 18px; margin-bottom:0;">{w_li}</ul>
-                </div>
-            </div>
-            <div style="margin-top: 14px; padding: 14px; border-radius: 12px;
-                        background: linear-gradient(90deg, rgba(30,41,59,0.75) 0%, rgba(15,23,42,0.75) 100%);
-                        border: 1px solid #3b82f6;">
-                <div style="color:#60a5fa; font-weight:900;">🤝 Complementary Partner</div>
-                <div style="color:#e2e8f0; margin-top:6px;">{t.get('partners','')}</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    with tab3:
-        tools_html = "".join([
-            f"<span style='display:inline-block; background:#0f172a; padding:6px 14px; border-radius:999px; border:1px solid #334155; margin:0 8px 8px 0; font-size:0.9em; color:#94a3b8;'>🛠️ {x}</span>"
-            for x in t.get('tools', [])
-        ])
-        st.markdown(
-            f"""
-            <h3 style="margin-top:0;">🖥️ Desk Setup</h3>
-            <div style="background:#0f172a; padding: 16px; border-radius: 12px; border:1px solid #1e293b; white-space: pre-line; color:#cbd5e1; line-height:1.8;">
-                {t.get('desk_setup','')}
-            </div>
-            <h3 style="margin-top: 16px;">🧰 Tooling</h3>
-            <div style="margin-top: 8px;">{tools_html}</div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    with tab4:
-        evo = t.get('evolution', {'lvl1': '', 'lvl2': '', 'lvl3': ''})
-        st.markdown(
-            f"""
-            <div style="padding-left: 16px; border-left: 2px solid #334155; margin-left: 6px;">
-                <div style="margin-bottom: 18px;">
-                    <div style="color:#94a3b8; font-size:0.85em; letter-spacing:1px;">LEVEL 1</div>
-                    <div style="color:#cbd5e1; font-weight:900; font-size:1.1em;">🐣 新手陷阱</div>
-                    <div style="color:#64748b; margin-top:6px; line-height:1.65;">{evo.get('lvl1','')}</div>
-                </div>
-                <div style="margin-bottom: 18px;">
-                    <div style="color:#60a5fa; font-size:0.85em; letter-spacing:1px;">LEVEL 2</div>
-                    <div style="color:#ffffff; font-weight:900; font-size:1.1em;">🦋 规则建立</div>
-                    <div style="color:#94a3b8; margin-top:6px; line-height:1.65;">{evo.get('lvl2','')}</div>
-                </div>
-                <div>
-                    <div style="color:#4ade80; font-size:0.85em; letter-spacing:1px;">LEVEL 3</div>
-                    <div style="color:#4ade80; font-weight:900; font-size:1.1em;">🦁 顶级猎手</div>
-                    <div style="color:#cbd5e1; margin-top:6px; line-height:1.65;">{evo.get('lvl3','')}</div>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    # conversion block (stronger funnel)
-    st.divider()
-    st.markdown(
-        f"""
-        <div style="text-align:center; margin-top: 6px;">
-            <h3 style="margin-bottom: 6px;">🚀 Zeuspace Pro / Research Channel</h3>
-            <div style="color:#94a3b8; font-size:0.95em; max-width: 650px; margin: 0 auto;">
-                你是 <b>{mbti}</b>，对应的优势与盲区已经清楚了。下一步不是“看更多”，而是把它变成可执行的风控与策略框架。
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col1:
-        if st.button("联系我们 / 加入研究群", type="primary", use_container_width=True):
-            st.session_state.step = Step.CONTACT
-            st.rerun()
-    with col2:
-        if st.button("重新测评", use_container_width=True):
-            reset_all()
-            st.rerun()
-    with col3:
-        st.download_button(
-            "导出结果(JSON)",
-            data=str({"mbti": mbti, "radar": radar, "ref": ref}),
-            file_name=f"zeuspace_profile_{mbti}.json",
-            use_container_width=True
-        )
-
-    # share tip
-    sl = share_link(mbti)
-    st.markdown(
-        f"""
-        <div class="tiny-disclaimer">
-            Disclaimer: Zeuspace is a research/technology provider. Not financial advice.<br/>
-            Share: {sl}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-elif st.session_state.step == Step.CONTACT:
-    mbti = st.session_state.mbti_result or "—"
-    st.markdown(
-        f"""
-        <div style="text-align:center; padding: 26px 0 12px 0;">
-            <div style="font-size: 3em; margin-bottom: 10px;">💎</div>
-            <h1 style="margin-bottom: 6px;">Zeuspace Professional Network</h1>
-            <p style="color:#cbd5e1; font-size: 1.05em; max-width: 660px; margin: 0 auto;">
-                你当前类型：<b>{mbti}</b>。如果你希望把画像落到“策略 + 风控 + 执行SOP”，可以通过官方渠道建立联系。
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-    st.markdown(
-        """
-        <div class="css-card" style="max-width: 560px; margin: 0 auto;">
-            <a href="https://www.linkedin.com/company/zeuspace-group/" target="_blank" style="text-decoration:none;">
-                <div style="background:#0077b5; color:white; padding:16px; border-radius:12px; text-align:center; font-weight:900;">
+# --- 联系页 (去敏化，合规版) ---
+elif st.session_state.step == 'contact_sales':
+    st.markdown("""
+    <div style='text-align: center; padding: 40px 0;'>
+        <div style='font-size: 3em; margin-bottom: 20px;'>💎</div>
+        <h1 style='color: white;'>Zeuspace Professional Network</h1>
+        <p style='color: #cbd5e1; font-size: 1.1em; max-width: 600px; margin: 0 auto 40px auto;'>
+            感谢您的关注。作为 <strong>{type}</strong> 类型的交易者，您可能需要更精准的市场数据与工具支持。<br>
+            欢迎通过以下官方渠道与我们建立联系。
+        </p>
+    </div>
+    """.format(type=st.session_state.mbti_result), unsafe_allow_html=True)
+    
+    # 社交媒体大卡片
+    st.markdown("""
+    <div style='background: rgba(30, 41, 59, 0.6); padding: 30px; border-radius: 20px; border: 1px solid #334155; max-width: 500px; margin: 0 auto;'>
+        <div style='display: flex; flex-direction: column; gap: 15px;'>
+            <a href="https://www.linkedin.com/company/zeuspace-group/" target="_blank" style='text-decoration: none;'>
+                <div style='background: #0077b5; color: white; padding: 18px; border-radius: 12px; text-align: center; font-weight: bold; transition: opacity 0.2s;'>
                     💼 Connect on LinkedIn
-                    <div style="font-size:0.85em; opacity:0.9; font-weight:500; margin-top:6px;">商务合作 / 专业咨询</div>
+                    <div style='font-size: 0.8em; opacity: 0.9; font-weight: normal; margin-top: 5px;'>适合商务合作与专业咨询</div>
                 </div>
             </a>
-            <div style="height: 12px;"></div>
-            <a href="https://x.com/ZeuspaceGroup" target="_blank" style="text-decoration:none;">
-                <div style="background:#000; color:white; padding:16px; border-radius:12px; text-align:center; font-weight:900; border:1px solid #333;">
+            <a href="https://x.com/ZeuspaceGroup" target="_blank" style='text-decoration: none;'>
+                <div style='background: #000000; color: white; padding: 18px; border-radius: 12px; text-align: center; font-weight: bold; border: 1px solid #333; transition: opacity 0.2s;'>
                     🐦 Follow on X (Twitter)
-                    <div style="font-size:0.85em; opacity:0.9; font-weight:500; margin-top:6px;">市场观点 / 动态更新</div>
+                    <div style='font-size: 0.8em; opacity: 0.9; font-weight: normal; margin-top: 5px;'>获取实时市场观点与动态</div>
                 </div>
             </a>
-            <div style="margin-top: 16px; color:#64748b; font-size:0.82em; text-align:center;">
-                Disclaimer: Not investment advice.
-            </div>
         </div>
-        """,
-        unsafe_allow_html=True
-    )
-    st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
-    if st.button("← 返回结果页"):
-        st.session_state.step = Step.RESULT
+        <p style='text-align: center; margin-top: 20px; color: #64748b; font-size: 0.8em;'>
+            Disclaimer: Zeuspace is a technology and research provider. We do not provide financial advice.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("← 返回报告页面"):
+        st.session_state.step = 'result'
         st.rerun()
