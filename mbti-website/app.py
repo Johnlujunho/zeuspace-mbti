@@ -1214,7 +1214,7 @@ def build_profile_addendum(mbti: str, scores: Counter) -> dict:
     )
 
     failure_mode = (
-        "【典型失效模式】\n"
+        "【常见失效模式】\n"
         "- 震荡磨损：在没有趋势/没有事件驱动时频繁试错，手续费与小止损累积吞噬利润。\n"
         "- 叙事反噬：把“故事”当成“事实”，或在流动性退潮期仍按牛市思维持仓。\n"
         "- 情绪漂移：连续盈利/亏损后改变规则（尤其P与F偏强时更常见）。"
@@ -1243,39 +1243,13 @@ if 'answers' not in st.session_state:
 if 'mbti_result' not in st.session_state:
     st.session_state.mbti_result = ''
 
-# 初始为20题短测，完成后可选择生成报告或继续全量题库
-if 'max_questions' not in st.session_state:
-    st.session_state.max_questions = 20
-if 'is_extended' not in st.session_state:
-    st.session_state.is_extended = False
-
 def handle_option(value):
     st.session_state.answers[st.session_state.current_idx] = value
-
-    # 以 max_questions 控制当前测评长度：先20题短测，用户可选择继续全量题库
-    max_q = int(st.session_state.get('max_questions', 20))
-    total_q = len(RAW_QUESTIONS)
-    idx = st.session_state.current_idx
-
-    # 还没到当前阶段的最后一题：继续下一题
-    if idx < max_q - 1:
+    if st.session_state.current_idx < len(RAW_QUESTIONS) - 1:
         st.session_state.current_idx += 1
-        return
-
-    # 到了短测(20题)结束点：进入选择页
-    if (max_q < total_q) and (not st.session_state.get('is_extended', False)):
-        st.session_state.current_idx += 1  # 指向下一题(第21题)
-        st.session_state.step = 'checkpoint'
-        return
-
-    # 全量题库已完成：生成报告
-    if idx >= total_q - 1:
+    else:
         st.session_state.step = 'analyzing'
         calculate_result()
-        return
-
-    # 兜底：如果 max_questions 被设为 total_q 但 idx 还没到末尾
-    st.session_state.current_idx += 1
 
 def calculate_result():
     scores = Counter(st.session_state.answers.values())
@@ -1393,24 +1367,17 @@ if st.session_state.step == 'intro':
     with c2:
         if st.button("开始深度测评 →", type="primary", use_container_width=True):
             st.session_state.step = 'quiz'
-            st.session_state.current_idx = 0
-            st.session_state.answers = {}
-            st.session_state.mbti_result = ''
-            st.session_state.max_questions = 20
-            st.session_state.is_extended = False
             st.rerun()
             
     st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.8em; margin-top: 40px;'>Zeuspace Research • 非投资建议</p>", unsafe_allow_html=True)
 
 # --- 答题页 ---
 elif st.session_state.step == 'quiz':
-    max_q = int(st.session_state.get('max_questions', 20))
-    max_q = min(max_q, len(RAW_QUESTIONS))
     q_data = RAW_QUESTIONS[st.session_state.current_idx]
-    progress = (st.session_state.current_idx + 1) / max_q
+    progress = (st.session_state.current_idx + 1) / len(RAW_QUESTIONS)
     
     st.progress(progress)
-    st.caption(f"Question {st.session_state.current_idx + 1}/{max_q} • {q_data['d']} 维度")
+    st.caption(f"Question {st.session_state.current_idx + 1}/{len(RAW_QUESTIONS)} • {q_data['d']} 维度")
     
     st.markdown(f"""
     <div style='min-height: 180px; display: flex; flex-direction: column; justify-content: center; margin: 20px 0;'>
@@ -1427,46 +1394,6 @@ elif st.session_state.step == 'quiz':
         if st.button(q_data['b'], use_container_width=True):
             handle_option(q_data['d'][1])
             st.rerun()
-
-
-# --- 20题完成后的选择页 ---
-elif st.session_state.step == 'checkpoint':
-    st.markdown("<div style='height: 12vh;'></div>", unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align:center; color:#60a5fa;'>阶段一完成：20/20</h2>", unsafe_allow_html=True)
-    st.markdown(
-        """<div class='css-card' style='text-align:center;'>
-            <div style='font-size:1.05em; color:#cbd5e1; line-height:1.7;'>
-                你已经完成 <b>20道核心题</b>。现在可以立即生成报告（速度快），或继续完成全量题库以提升准确度与细节。
-            </div>
-            <div style='margin-top:10px; color:#64748b; font-size:0.9em;'>
-                建议：如果你在关键维度上比较“摇摆”，继续答题会更接近真实画像。
-            </div>
-        </div>""",
-        unsafe_allow_html=True
-    )
-
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("✅ 直接生成报告", type="primary", use_container_width=True):
-            calculate_result()
-            st.session_state.step = 'analyzing'
-            st.rerun()
-    with col2:
-        if st.button("➕ 继续答题（更准确）", use_container_width=True):
-            st.session_state.is_extended = True
-            st.session_state.max_questions = len(RAW_QUESTIONS)
-            st.session_state.step = 'quiz'
-            st.rerun()
-
-    st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
-    if st.button("↩︎ 重新开始测评", use_container_width=True):
-        st.session_state.step = 'intro'
-        st.session_state.current_idx = 0
-        st.session_state.answers = {}
-        st.session_state.mbti_result = ''
-        st.session_state.max_questions = 20
-        st.session_state.is_extended = False
-        st.rerun()
 
 # --- 分析页 ---
 elif st.session_state.step == 'analyzing':
@@ -1583,7 +1510,7 @@ elif st.session_state.step == 'result':
 {template['cognitive']}
 </div>
 <div style="padding: 15px; background: rgba(248, 113, 113, 0.1); border-left: 3px solid #f87171; border-radius: 4px;">
-<strong style="color: #f87171; display: block; margin-bottom: 5px;">⚠️ 致命盲区 (Blindspot)</strong>
+<strong style="color: #f87171; display: block; margin-bottom: 5px;">主要盲点 (Blind Spot)</strong>
 <span style="color: #e2e8f0; font-size: 0.95em;">{template['blindspot']}</span>
 </div>
 </div>
@@ -1617,7 +1544,7 @@ elif st.session_state.step == 'result':
     with tab1:
         st.markdown(f"""
 <h3 style="color: #facc15; margin-top: 0;">🌍 适配战场 (Markets)</h3>
-<p style="color: #cbd5e1; background: rgba(15, 23, 42, 0.5); padding: 15px; border-radius: 8px; border: 1px solid #334155;">
+<p style="color: #cbd5e1; background: rgba(15, 23, 42, 0.5); padding: 15px; border-radius: 8px; border: 1px solid #334155; white-space: pre-line; line-height: 1.7;">
 {template.get('markets', '全市场通用')}
 </p>
 
@@ -1630,7 +1557,7 @@ elif st.session_state.step == 'result':
 <p style="font-size: 0.95em; color: #d1fae5; margin-top: 10px; line-height: 1.5;">{template.get('win_condition', '顺势而为')}</p>
 </div>
 <div style="background: rgba(239, 68, 68, 0.1); padding: 20px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.2);">
-<strong style="color: #f87171; font-size: 1.1em;">💀 爆仓扳机 (Loss Trigger)</strong>
+<strong style="color: #f87171; font-size: 1.1em;">亏损触发点 (Loss Trigger)</strong>
 <p style="font-size: 0.95em; color: #fee2e2; margin-top: 10px; line-height: 1.5;">{template.get('loss_trigger', '逆势抗单')}</p>
 </div>
 </div>
@@ -1706,11 +1633,11 @@ elif st.session_state.step == 'result':
 </div>
 """, unsafe_allow_html=True)
 
-    with tab5:
-        st.markdown(f"<div class='css-card' style='white-space: pre-line;'>{addon['risk_protocol']}\n\n{addon['execution_sop']}</div>", unsafe_allow_html=True)
+with tab5:
+    st.markdown(f"<div class='css-card' style='white-space: pre-line;'>{addon['risk_protocol']}\n\n{addon['execution_sop']}</div>", unsafe_allow_html=True)
 
-    with tab6:
-        st.markdown(f"<div class='css-card' style='white-space: pre-line;'>{addon['review_checklist']}</div>", unsafe_allow_html=True)
+with tab6:
+    st.markdown(f"<div class='css-card' style='white-space: pre-line;'>{addon['review_checklist']}</div>", unsafe_allow_html=True)
     
     # -------------------------------------------------------
     # 底部行动区
@@ -1752,7 +1679,7 @@ Zeuspace Neural Engine v2.4 • Powered by Behavioral Finance
         st.rerun()
 
 # --- 联系页 (去敏化，合规版) ---
-elif st.session_state.step == 'contact_sales':
+if st.session_state.step == 'contact_sales':
     st.markdown("""
     <div style='text-align: center; padding: 40px 0;'>
         <div style='font-size: 3em; margin-bottom: 20px;'>💎</div>
