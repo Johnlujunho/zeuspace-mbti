@@ -1525,26 +1525,27 @@ elif st.session_state.step == 'result':
     
     # --- Tab 1: 策略与市场 ---
     with tab1:
-        st.markdown(f"""
-<h3 style="color: #facc15; margin-top: 0;">🌍 适配战场 (Markets)</h3>
-<p style="color: #cbd5e1; background: rgba(15, 23, 42, 0.5); padding: 15px; border-radius: 8px; border: 1px solid #334155;">
+        tab1_html = f"""
+<h3 style=\"color: #facc15; margin-top: 0;\">🌍 适配战场 (Markets)</h3>
+<p style=\"color: #cbd5e1; background: rgba(15, 23, 42, 0.5); padding: 15px; border-radius: 8px; border: 1px solid #334155;\">
 {template.get('markets', '全市场通用')}
 </p>
 
-<h3 style="color: #4ade80; margin-top: 25px;">🎯 建议策略 (Playbook)</h3>
-<p style="color: #cbd5e1; line-height: 1.6;">{template.get('strategy', '趋势跟踪')}</p>
+<h3 style=\"color: #4ade80; margin-top: 25px;\">🎯 建议策略 (Playbook)</h3>
+<p style=\"color: #cbd5e1; line-height: 1.6;\">{template.get('strategy', '趋势跟踪')}</p>
 
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 25px;">
-<div style="background: rgba(16, 185, 129, 0.1); padding: 20px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.2);">
-<strong style="color: #34d399; font-size: 1.1em;">✅ 胜利方程式 (Win Condition)</strong>
-<p style="font-size: 0.95em; color: #d1fae5; margin-top: 10px; line-height: 1.5;">{template.get('win_condition', '顺势而为')}</p>
+<div style=\"display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 25px;\">
+  <div style=\"background: rgba(16, 185, 129, 0.1); padding: 20px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.2);\">
+    <strong style=\"color: #34d399; font-size: 1.1em;\">✅ 胜利方程式 (Win Condition)</strong>
+    <p style=\"font-size: 0.95em; color: #d1fae5; margin-top: 10px; line-height: 1.5;\">{template.get('win_condition', '顺势而为')}</p>
+  </div>
+  <div style=\"background: rgba(239, 68, 68, 0.1); padding: 20px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.2);\">
+    <strong style=\"color: #f87171; font-size: 1.1em;\">💀 爆仓扳机 (Loss Trigger)</strong>
+    <p style=\"font-size: 0.95em; color: #fee2e2; margin-top: 10px; line-height: 1.5;\">{template.get('loss_trigger', '逆势抗单')}</p>
+  </div>
 </div>
-<div style="background: rgba(239, 68, 68, 0.1); padding: 20px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.2);">
-<strong style="color: #f87171; font-size: 1.1em;">💀 爆仓扳机 (Loss Trigger)</strong>
-<p style="font-size: 0.95em; color: #fee2e2; margin-top: 10px; line-height: 1.5;">{template.get('loss_trigger', '逆势抗单')}</p>
-</div>
-</div>
-""", unsafe_allow_html=True)
+"""
+        st.markdown(tab1_html, unsafe_allow_html=True)
 
     # --- Tab 2: 优势与弱点 ---
     with tab2:
