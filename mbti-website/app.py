@@ -1112,8 +1112,8 @@ def build_profile_addendum(mbti: str, scores: Counter) -> dict:
     )
 
     market_fit = (
-        f"{MARKET_FIT['SN'][mbti[1]]}\n"
-        f"{MARKET_FIT['TF'][mbti[2]]}\n"
+        f"{MARKET_FIT['SN'][mbti[1]]} \n"
+        f"{MARKET_FIT['TF'][mbti[2]]} \n"
         f"{MARKET_FIT['JP'][mbti[3]]}"
     )
 
@@ -1493,7 +1493,7 @@ elif st.session_state.step == 'result':
 {template['cognitive']}
 </div>
 <div style="padding: 15px; background: rgba(248, 113, 113, 0.1); border-left: 3px solid #f87171; border-radius: 4px;">
-<strong style="color: #f87171; display: block; margin-bottom: 5px;">⚠️ 关键盲点 (Blindspot)</strong>
+<strong style="color: #f87171; display: block; margin-bottom: 5px;">⚠️ 需要注意点 (Blindspot)</strong>
 <span style="color: #e2e8f0; font-size: 0.95em; white-space: pre-line; line-height: 1.6;">{template['blindspot']}</span>
 </div>
 </div>
