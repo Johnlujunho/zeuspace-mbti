@@ -1243,13 +1243,39 @@ if 'answers' not in st.session_state:
 if 'mbti_result' not in st.session_state:
     st.session_state.mbti_result = ''
 
+# 初始为20题短测，完成后可选择生成报告或继续全量题库
+if 'max_questions' not in st.session_state:
+    st.session_state.max_questions = 20
+if 'is_extended' not in st.session_state:
+    st.session_state.is_extended = False
+
 def handle_option(value):
     st.session_state.answers[st.session_state.current_idx] = value
-    if st.session_state.current_idx < len(RAW_QUESTIONS) - 1:
+
+    # 以 max_questions 控制当前测评长度：先20题短测，用户可选择继续全量题库
+    max_q = int(st.session_state.get('max_questions', 20))
+    total_q = len(RAW_QUESTIONS)
+    idx = st.session_state.current_idx
+
+    # 还没到当前阶段的最后一题：继续下一题
+    if idx < max_q - 1:
         st.session_state.current_idx += 1
-    else:
+        return
+
+    # 到了短测(20题)结束点：进入选择页
+    if (max_q < total_q) and (not st.session_state.get('is_extended', False)):
+        st.session_state.current_idx += 1  # 指向下一题(第21题)
+        st.session_state.step = 'checkpoint'
+        return
+
+    # 全量题库已完成：生成报告
+    if idx >= total_q - 1:
         st.session_state.step = 'analyzing'
         calculate_result()
+        return
+
+    # 兜底：如果 max_questions 被设为 total_q 但 idx 还没到末尾
+    st.session_state.current_idx += 1
 
 def calculate_result():
     scores = Counter(st.session_state.answers.values())
@@ -1367,17 +1393,24 @@ if st.session_state.step == 'intro':
     with c2:
         if st.button("开始深度测评 →", type="primary", use_container_width=True):
             st.session_state.step = 'quiz'
+            st.session_state.current_idx = 0
+            st.session_state.answers = {}
+            st.session_state.mbti_result = ''
+            st.session_state.max_questions = 20
+            st.session_state.is_extended = False
             st.rerun()
             
     st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.8em; margin-top: 40px;'>Zeuspace Research • 非投资建议</p>", unsafe_allow_html=True)
 
 # --- 答题页 ---
 elif st.session_state.step == 'quiz':
+    max_q = int(st.session_state.get('max_questions', 20))
+    max_q = min(max_q, len(RAW_QUESTIONS))
     q_data = RAW_QUESTIONS[st.session_state.current_idx]
-    progress = (st.session_state.current_idx + 1) / len(RAW_QUESTIONS)
+    progress = (st.session_state.current_idx + 1) / max_q
     
     st.progress(progress)
-    st.caption(f"Question {st.session_state.current_idx + 1}/{len(RAW_QUESTIONS)} • {q_data['d']} 维度")
+    st.caption(f"Question {st.session_state.current_idx + 1}/{max_q} • {q_data['d']} 维度")
     
     st.markdown(f"""
     <div style='min-height: 180px; display: flex; flex-direction: column; justify-content: center; margin: 20px 0;'>
@@ -1394,6 +1427,46 @@ elif st.session_state.step == 'quiz':
         if st.button(q_data['b'], use_container_width=True):
             handle_option(q_data['d'][1])
             st.rerun()
+
+
+# --- 20题完成后的选择页 ---
+elif st.session_state.step == 'checkpoint':
+    st.markdown("<div style='height: 12vh;'></div>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align:center; color:#60a5fa;'>阶段一完成：20/20</h2>", unsafe_allow_html=True)
+    st.markdown(
+        """<div class='css-card' style='text-align:center;'>
+            <div style='font-size:1.05em; color:#cbd5e1; line-height:1.7;'>
+                你已经完成 <b>20道核心题</b>。现在可以立即生成报告（速度快），或继续完成全量题库以提升准确度与细节。
+            </div>
+            <div style='margin-top:10px; color:#64748b; font-size:0.9em;'>
+                建议：如果你在关键维度上比较“摇摆”，继续答题会更接近真实画像。
+            </div>
+        </div>""",
+        unsafe_allow_html=True
+    )
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("✅ 直接生成报告", type="primary", use_container_width=True):
+            calculate_result()
+            st.session_state.step = 'analyzing'
+            st.rerun()
+    with col2:
+        if st.button("➕ 继续答题（更准确）", use_container_width=True):
+            st.session_state.is_extended = True
+            st.session_state.max_questions = len(RAW_QUESTIONS)
+            st.session_state.step = 'quiz'
+            st.rerun()
+
+    st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+    if st.button("↩︎ 重新开始测评", use_container_width=True):
+        st.session_state.step = 'intro'
+        st.session_state.current_idx = 0
+        st.session_state.answers = {}
+        st.session_state.mbti_result = ''
+        st.session_state.max_questions = 20
+        st.session_state.is_extended = False
+        st.rerun()
 
 # --- 分析页 ---
 elif st.session_state.step == 'analyzing':
