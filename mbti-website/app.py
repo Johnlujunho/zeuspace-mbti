@@ -1493,8 +1493,8 @@ elif st.session_state.step == 'result':
 {template['cognitive']}
 </div>
 <div style="padding: 15px; background: rgba(248, 113, 113, 0.1); border-left: 3px solid #f87171; border-radius: 4px;">
-<strong style="color: #f87171; display: block; margin-bottom: 5px;">⚠️ 致命盲区 (Blindspot)</strong>
-<span style="color: #e2e8f0; font-size: 0.95em;">{template['blindspot']}</span>
+<strong style="color: #f87171; display: block; margin-bottom: 5px;">⚠️ 关键盲点 (Blindspot)</strong>
+<span style="color: #e2e8f0; font-size: 0.95em; white-space: pre-line; line-height: 1.6;">{template['blindspot']}</span>
 </div>
 </div>
 """, unsafe_allow_html=True)
@@ -1527,7 +1527,7 @@ elif st.session_state.step == 'result':
     with tab1:
         tab1_html = f"""
 <h3 style=\"color: #facc15; margin-top: 0;\">🌍 适配战场 (Markets)</h3>
-<p style=\"color: #cbd5e1; background: rgba(15, 23, 42, 0.5); padding: 15px; border-radius: 8px; border: 1px solid #334155;\">
+<p style=\"color: #cbd5e1; background: rgba(15, 23, 42, 0.5); padding: 15px; border-radius: 8px; border: 1px solid #334155; white-space: pre-line; line-height: 1.6;\">
 {template.get('markets', '全市场通用')}
 </p>
 
